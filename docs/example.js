@@ -15,9 +15,15 @@ function* range(min, max) {
 const view = createView('polar', (draw, state) => {
   draw.color('tomato')
   draw.dot([0, 0])
+  let last = [0, 0]
+  draw.save()
   for (const c of state.circles){
-    draw.circle([c.r, c.theta], c.size, false, 1)
+    draw.translate(last)
+    last = [c.r, c.theta]
+    draw.circle(last, c.size, false, 1)
   }
+  draw.restore()
+  draw.color('steelblue')
   draw.dot(view.center)
 })
 

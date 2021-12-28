@@ -129,9 +129,18 @@ function createView(projDef, viewbox, factory) {
     var s = m * view.scale;
     var c = proj.to(view.center);
     draw.cameraBounds = [-c[0] * s + ex, (1 - c[0]) * s + ex, -c[1] * s + ey, (1 - c[1]) * s + ey];
-    draw.worldScale = [0, m, 0, m];
+    draw.worldUnit = [0, m, 0, m];
+    draw.worldScale = [0, s, 0, s];
     draw.ctx.setTransform(px, 0, 0, px, 0, 0);
     return draw;
+  };
+
+  draw.save = function () {
+    return draw.ctx.save();
+  };
+
+  draw.restore = function () {
+    return draw.ctx.restore();
   };
 
   draw.clear = function () {
@@ -167,16 +176,28 @@ function createView(projDef, viewbox, factory) {
     return draw;
   };
 
+  draw.translate = function (pt) {
+    var ctx = draw.ctx;
+
+    var _proj$toCamera = proj.toCamera(draw.worldScale, pt),
+        x = _proj$toCamera[0],
+        y = _proj$toCamera[1];
+
+    ctx.translate(x, y);
+    return draw;
+  };
+
   draw.dot = function (pt) {
     var ctx = draw.ctx;
 
-    var _proj$toCamera = proj.toCamera(draw.cameraBounds, pt),
-        x = _proj$toCamera[0],
-        y = _proj$toCamera[1];
+    var _proj$toCamera2 = proj.toCamera(draw.cameraBounds, pt),
+        x = _proj$toCamera2[0],
+        y = _proj$toCamera2[1];
 
     ctx.beginPath();
     ctx.arc(x, y, 1, 0, 2 * Math.PI);
     ctx.fill();
+    return draw;
   };
 
   draw.circle = function (pt, r, fill, stroke) {
@@ -190,9 +211,9 @@ function createView(projDef, viewbox, factory) {
 
     var ctx = draw.ctx;
 
-    var _proj$toCamera2 = proj.toCamera(draw.cameraBounds, pt),
-        x = _proj$toCamera2[0],
-        y = _proj$toCamera2[1];
+    var _proj$toCamera3 = proj.toCamera(draw.cameraBounds, pt),
+        x = _proj$toCamera3[0],
+        y = _proj$toCamera3[1];
 
     r = proj.toCameraSize(draw.cameraBounds, r);
     ctx.beginPath();
@@ -216,7 +237,7 @@ function createView(projDef, viewbox, factory) {
     }
 
     draw.init(canvas);
-    return proj.fromCamera(fromWorld ? draw.worldScale : draw.cameraBounds, pos);
+    return proj.fromCamera(fromWorld ? draw.worldUnit : draw.cameraBounds, pos);
   };
 
   view.getMousePos = function (e, canvas, fromWorld) {

@@ -39,8 +39,11 @@ export function createView(projDef, viewbox, factory){
       , -c[1] * s + ey
       , (1 - c[1]) * s + ey
     ]
-    draw.worldScale = [
+    draw.worldUnit = [
       0, m, 0, m
+    ]
+    draw.worldScale = [
+      0, s, 0, s
     ]
     draw.ctx.setTransform(
       px, 0, 0,
@@ -48,6 +51,9 @@ export function createView(projDef, viewbox, factory){
     )
     return draw
   }
+
+  draw.save = () => draw.ctx.save()
+  draw.restore = () => draw.ctx.restore()
 
   draw.clear = () => {
     draw.ctx.clearRect(0, 0, draw.width, draw.height)
@@ -77,12 +83,20 @@ export function createView(projDef, viewbox, factory){
     return draw
   }
 
+  draw.translate = pt => {
+    const ctx = draw.ctx
+    const [x, y] = proj.toCamera(draw.worldScale, pt)
+    ctx.translate(x, y)
+    return draw
+  }
+
   draw.dot = pt => {
     const ctx = draw.ctx
     const [x, y] = proj.toCamera(draw.cameraBounds, pt)
     ctx.beginPath()
     ctx.arc(x, y, 1, 0, 2 * Math.PI)
     ctx.fill()
+    return draw
   }
 
   draw.circle = (pt, r, fill = true, stroke = 0) => {
@@ -103,7 +117,7 @@ export function createView(projDef, viewbox, factory){
 
   view.toViewCoords = (pos, canvas, fromWorld = false) => {
     draw.init(canvas)
-    return proj.fromCamera(fromWorld ? draw.worldScale : draw.cameraBounds, pos)
+    return proj.fromCamera(fromWorld ? draw.worldUnit : draw.cameraBounds, pos)
   }
 
   view.getMousePos = (e, canvas, fromWorld = false) => {
