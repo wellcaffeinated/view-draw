@@ -1,0 +1,24 @@
+{
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "modules": "auto",
+        "targets": [
+          "last 1 version",
+          "> 1%"
+        ],
+        "loose": true,
+        "bugfixes": true
+      }
+    ]
+  ],
+  "plugins": [
+    [
+      "@babel/plugin-proposal-class-properties",
+      {
+        "loose": true
+      }
+    ]
+  ]
+}

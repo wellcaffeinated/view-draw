@@ -1,0 +1,58 @@
+{
+  "name": "view-draw",
+  "version": "1.0.0",
+  "description": "Tiny Canvas Draw Toolkit",
+  "main": "dist/view-draw.js",
+  "module": "dist/view-draw.module.js",
+  "files": [
+    "dist/view-draw.js",
+    "dist/view-draw.min.js",
+    "dist/view-draw.module.js",
+    "LICENSE",
+    "package.json",
+    "README.md",
+    "src"
+  ],
+  "scripts": {
+    "build": "rollup -c rollup.config.js",
+    "dev": "rollup -c rollup.config.js -w -m inline",
+    "version": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+  ],
+  "author": "wellcaffeinated",
+  "license": "GPLv3",
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "devDependencies": {
+    "@babel/cli": "^7.1.5",
+    "@babel/core": "^7.15.5",
+    "@babel/eslint-parser": "^7.15.4",
+    "@babel/plugin-proposal-class-properties": "^7.14.5",
+    "@babel/polyfill": "^7.0.0",
+    "@babel/preset-env": "^7.15.4",
+    "@babel/register": "^7.15.3",
+    "@rollup/plugin-babel": "^5.3.0",
+    "@rollup/plugin-node-resolve": "^13.0.4",
+    "babel-eslint": "^10.0.1",
+    "babel-loader": "^8.0.0-beta.4",
+    "babel-plugin-add-module-exports": "^1.0.0",
+    "babel-plugin-module-resolver": "^4.1.0",
+    "eslint": "^7.31.0",
+    "eslint-config-standard": "^16.0.3",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.1.0",
+    "eslint-plugin-standard": "^5.0.0",
+    "rollup": "^2.56.3",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-terser": "^7.0.2"
+  },
+  "dependencies": {}
+}
