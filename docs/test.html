@@ -5,8 +5,22 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #content {
+      position: relative;
+      overflow: hidden;
+      width: 70%;
+    }
+  </style>
 </head>
 <body>
+  <div id="content"></div>
+  <script src="https://unpkg.com/intween/dist/intween.min.js"></script>
   <script src="../dist/view-draw.min.js"></script>
   <script src="./example.js"></script>
 </body>

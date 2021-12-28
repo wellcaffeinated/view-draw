@@ -1,32 +1,26 @@
-const { View } = window.ViewDraw
+const { createView, createCanvas } = window.ViewDraw
+const { animationFrames, smoothen, Subject } = window.InTween
 
-const view = View('polar', (draw, t) => {
+const view = createView('polar', (draw, t) => {
   draw.color('tomato')
   draw.dot([0, 0])
   draw.circle([0.5, t / 5000 % 1], 0.1, false, 1)
 })
-// .options({ pixelRatio: 2 })
 
-const canvas = document.createElement('canvas')
-canvas.style.background = '#222'
-canvas.width = 2000
-canvas.height = 1000
-canvas.style.transformOrigin = 'top left'
-canvas.style.transform = 'scale(0.5)'
-document.body.appendChild(canvas)
+const parent = document.getElementById('content')
+const { canvas } = createCanvas({ parent })
 
-// view.camera(center, zoom)
-// view.drawOver(canvas)
-const loop = () => {
-  const t = window.performance.now()
-  // view.camera([0.5, t / 5000 % 1])
+animationFrames().subscribe(t => {
   view.draw(canvas, t)
-  window.requestAnimationFrame(loop)
-}
+})
 
-loop()
+const cameraPos = new Subject()
+
+cameraPos.pipe(smoothen({ easing: 'quadOut' })).subscribe(state => {
+  view.camera(state.center)
+})
 
 canvas.addEventListener('click', e => {
   const pt = view.getMousePos(e, canvas)
-  view.camera(pt)
+  cameraPos.next({ center: pt })
 })

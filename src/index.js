@@ -1,5 +1,2 @@
-import { createView } from './view.js'
-
-export function View(...args){
-  return createView(...args)
-}
+export { createView } from './view.js'
+export { createCanvas } from './canvas.js'

@@ -27,9 +27,9 @@ export function createView(projDef, viewbox, factory){
     draw.width = canvas.width
     draw.height = canvas.height
     draw.bounds = canvas.getBoundingClientRect()
-    draw.px = draw.width / draw.bounds.width
-    const ex = 0.5 * view.scale * draw.width
-    const ey = 0.5 * view.scale * draw.height
+    const px = draw.width / draw.bounds.width
+    const ex = 0.5 * view.scale * draw.width / px
+    const ey = 0.5 * view.scale * draw.height / px
     const m = Math.max(ex, ey)
     const c = proj.to(view.center)
     draw.cameraBounds = [
@@ -38,6 +38,10 @@ export function createView(projDef, viewbox, factory){
       , -c[1] * m + ey
       , (1 - c[1]) * m + ey
     ]
+    draw.ctx.setTransform(
+      px, 0, 0,
+      px, 0, 0
+    )
     return draw
   }
 
@@ -59,7 +63,7 @@ export function createView(projDef, viewbox, factory){
     const ctx = draw.ctx
     const [x, y] = proj.toCamera(draw.cameraBounds, pt)
     ctx.beginPath()
-    ctx.arc(x, y, 1 * draw.px, 0, 2 * Math.PI)
+    ctx.arc(x, y, 1, 0, 2 * Math.PI)
     ctx.fill()
   }
 
@@ -73,7 +77,6 @@ export function createView(projDef, viewbox, factory){
       ctx.fill()
     }
     if (stroke){
-      stroke *= draw.px
       if (ctx.lineWidth !== stroke){
         ctx.lineWidth = stroke
       }
@@ -85,8 +88,8 @@ export function createView(projDef, viewbox, factory){
   view.getMousePos = (e, canvas) => {
     draw.init(canvas)
     const pt = [
-      (e.pageX - draw.bounds.left) * draw.px
-      , (e.pageY - draw.bounds.top) * draw.px
+      (e.pageX - draw.bounds.left)
+      , (e.pageY - draw.bounds.top)
     ]
     return proj.fromCamera(draw.cameraBounds, pt)
   }

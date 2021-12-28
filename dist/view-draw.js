@@ -127,12 +127,13 @@
       draw.width = canvas.width;
       draw.height = canvas.height;
       draw.bounds = canvas.getBoundingClientRect();
-      draw.px = draw.width / draw.bounds.width;
-      var ex = 0.5 * view.scale * draw.width;
-      var ey = 0.5 * view.scale * draw.height;
+      var px = draw.width / draw.bounds.width;
+      var ex = 0.5 * view.scale * draw.width / px;
+      var ey = 0.5 * view.scale * draw.height / px;
       var m = Math.max(ex, ey);
       var c = proj.to(view.center);
       draw.cameraBounds = [-c[0] * m + ex, (1 - c[0]) * m + ex, -c[1] * m + ey, (1 - c[1]) * m + ey];
+      draw.ctx.setTransform(px, 0, 0, px, 0, 0);
       return draw;
     };
 
@@ -160,7 +161,7 @@
           y = _proj$toCamera[1];
 
       ctx.beginPath();
-      ctx.arc(x, y, 1 * draw.px, 0, 2 * Math.PI);
+      ctx.arc(x, y, 1, 0, 2 * Math.PI);
       ctx.fill();
     };
 
@@ -188,8 +189,6 @@
       }
 
       if (stroke) {
-        stroke *= draw.px;
-
         if (ctx.lineWidth !== stroke) {
           ctx.lineWidth = stroke;
         }
@@ -202,7 +201,7 @@
 
     view.getMousePos = function (e, canvas) {
       draw.init(canvas);
-      var pt = [(e.pageX - draw.bounds.left) * draw.px, (e.pageY - draw.bounds.top) * draw.px];
+      var pt = [e.pageX - draw.bounds.left, e.pageY - draw.bounds.top];
       return proj.fromCamera(draw.cameraBounds, pt);
     };
 
@@ -242,11 +241,84 @@
     return view;
   }
 
-  function View() {
-    return createView.apply(void 0, arguments);
+  function createCanvas(_temp) {
+    var _ref = _temp === void 0 ? {} : _temp,
+        _ref$autoResize = _ref.autoResize,
+        autoResize = _ref$autoResize === void 0 ? true : _ref$autoResize,
+        _ref$pixelRatio = _ref.pixelRatio,
+        pixelRatio = _ref$pixelRatio === void 0 ? window.devicePixelRatio || 1 : _ref$pixelRatio,
+        _ref$width = _ref.width,
+        width = _ref$width === void 0 ? 0 : _ref$width,
+        _ref$height = _ref.height,
+        height = _ref$height === void 0 ? 0 : _ref$height,
+        _ref$aspectRatio = _ref.aspectRatio,
+        aspectRatio = _ref$aspectRatio === void 0 ? 16 / 9 : _ref$aspectRatio,
+        _ref$parent = _ref.parent,
+        parent = _ref$parent === void 0 ? document.body : _ref$parent,
+        _ref$background = _ref.background,
+        background = _ref$background === void 0 ? 'hsl(0, 0%, 10%)' : _ref$background,
+        _ref$onResize = _ref.onResize,
+        onResize = _ref$onResize === void 0 ? function () {} : _ref$onResize;
+
+    var wrap = document.createElement('div');
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    var resize = {
+      w: !width,
+      h: !height
+    };
+    var dimensions = {};
+    wrap.style.overflow = 'hidden';
+    canvas.style.background = background;
+    canvas.style.transform = "scale(" + 1 / pixelRatio + ")";
+    canvas.style.transformOrigin = 'top left';
+
+    var _onResize = function _onResize() {
+      if (resize.w) {
+        width = parent.offsetWidth;
+      }
+
+      if (resize.h) {
+        height = width / aspectRatio;
+      }
+
+      dimensions.width = width;
+      dimensions.height = height;
+      canvas.width = pixelRatio * width;
+      canvas.height = pixelRatio * height; // ctx.scale(pixelRatio, pixelRatio)
+
+      wrap.style.width = width + 'px';
+      wrap.style.height = height + 'px';
+      onResize(dimensions);
+    };
+
+    wrap.appendChild(canvas);
+    parent.appendChild(wrap);
+
+    if (autoResize) {
+      window.addEventListener('resize', _onResize);
+    }
+
+    _onResize();
+
+    var destroy = function destroy() {
+      if (autoResize) {
+        window.removeEventListener('resize', _onResize);
+      }
+
+      canvas.parentNode.removeChild(canvas);
+    };
+
+    return {
+      canvas: canvas,
+      ctx: ctx,
+      destroy: destroy,
+      dimensions: dimensions
+    };
   }
 
-  exports.View = View;
+  exports.createCanvas = createCanvas;
+  exports.createView = createView;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
