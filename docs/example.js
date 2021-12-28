@@ -1,4 +1,4 @@
-const { createView, createCanvas, createDragger } = window.ViewDraw
+const { createView, createCanvas, createViewport } = window.ViewDraw
 const { animationFrames, Tween } = window.InTween
 
 function* range(min, max) {
@@ -18,6 +18,7 @@ const view = createView('polar', (draw, state) => {
   for (const c of state.circles){
     draw.circle([c.r, c.theta], c.size, false, 1)
   }
+  draw.dot(view.center)
 })
 
 const parent = document.getElementById('content')
@@ -35,41 +36,10 @@ const tween = Tween.create({
   })
 }).in('1s', { circles }).loop()
 
-const cam = {
-  center: [0, 0]
-  , zoom: 1
-}
-
-function calcZoom(cam, scroll, speed = 1) {
-  return cam.zoom * Math.pow(2, scroll * speed)
-}
-
-const dragger = createDragger(cam.center)
-const onWheel = (e) => {
-  e.preventDefault()
-  cam.zoom = calcZoom(cam, -e.deltaY, 0.001)
-}
-
-const onMouseDown = (e) => {
-  dragger.start([e.pageX, e.pageY])
-}
-
-const onMouseMove = (e) => {
-  dragger.drag([e.pageX, e.pageY])
-}
-
-const onMouseUp = (e) => {
-  dragger.stop([e.pageX, e.pageY])
-}
-
-canvas.addEventListener('wheel', onWheel)
-canvas.addEventListener('mousedown', onMouseDown)
-canvas.addEventListener('mousemove', onMouseMove)
-window.addEventListener('mouseup', onMouseUp)
-
+const viewport = createViewport(canvas)
 // view.camera([0, 0], 1)
 animationFrames().pipe(tween).subscribe(state => {
-  const center = view.toViewCoords(dragger.update(), canvas, true)
-  view.camera(center, cam.zoom)
+  const cam = viewport.update()
+  view.camera(view.toViewCoords(cam.center, canvas, true), cam.zoom)
   view.draw(canvas, state)
 })

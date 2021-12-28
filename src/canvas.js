@@ -161,9 +161,10 @@ export function createViewport(el, options = {}) {
 
   const getMousePos = (e) => {
     const offset = el.getBoundingClientRect()
+    // reversed because we want to move viewport opposite of drag
     return [
-      -(e.pageX - offset.left) / offset.width
-      , -(e.pageY - offset.top) / offset.height
+      -(e.pageX - offset.left)
+      , -(e.pageY - offset.top)
     ]
   }
 

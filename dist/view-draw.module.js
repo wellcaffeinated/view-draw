@@ -126,9 +126,10 @@ function createView(projDef, viewbox, factory) {
     var ex = 0.5 * draw.width / px;
     var ey = 0.5 * draw.height / px;
     var m = Math.max(ex, ey);
+    var s = m * view.scale;
     var c = proj.to(view.center);
-    draw.cameraBounds = [-c[0] * m + ex, (view.scale - c[0]) * m + ex, -c[1] * m + ey, (view.scale - c[1]) * m + ey];
-    draw.worldScale = [0, -m, 0, -m];
+    draw.cameraBounds = [-c[0] * s + ex, (1 - c[0]) * s + ex, -c[1] * s + ey, (1 - c[1]) * s + ey];
+    draw.worldScale = [0, m, 0, m];
     draw.ctx.setTransform(px, 0, 0, px, 0, 0);
     return draw;
   };
@@ -223,6 +224,7 @@ function createView(projDef, viewbox, factory) {
       fromWorld = false;
     }
 
+    draw.init(canvas);
     var pt = [e.pageX - draw.bounds.left, e.pageY - draw.bounds.top];
     return view.toViewCoords(pt, canvas, fromWorld);
   };
@@ -455,8 +457,9 @@ function createViewport(el, options) {
   }
 
   var getMousePos = function getMousePos(e) {
-    var offset = el.getBoundingClientRect();
-    return [-(e.pageX - offset.left) / offset.width, -(e.pageY - offset.top) / offset.height];
+    var offset = el.getBoundingClientRect(); // reversed because we want to move viewport opposite of drag
+
+    return [-(e.pageX - offset.left), -(e.pageY - offset.top)];
   };
 
   var dragger = createDragger(state.center, options);

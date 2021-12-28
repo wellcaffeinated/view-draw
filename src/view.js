@@ -31,15 +31,16 @@ export function createView(projDef, viewbox, factory){
     const ex = 0.5 * draw.width / px
     const ey = 0.5 * draw.height / px
     const m = Math.max(ex, ey)
+    const s = m * view.scale
     const c = proj.to(view.center)
     draw.cameraBounds = [
-      -c[0] * m + ex
-      , (view.scale - c[0]) * m + ex
-      , -c[1] * m + ey
-      , (view.scale - c[1]) * m + ey
+      -c[0] * s + ex
+      , (1 - c[0]) * s + ex
+      , -c[1] * s + ey
+      , (1 - c[1]) * s + ey
     ]
     draw.worldScale = [
-      0, -m, 0, -m
+      0, m, 0, m
     ]
     draw.ctx.setTransform(
       px, 0, 0,
@@ -106,6 +107,7 @@ export function createView(projDef, viewbox, factory){
   }
 
   view.getMousePos = (e, canvas, fromWorld = false) => {
+    draw.init(canvas)
     const pt = [
       (e.pageX - draw.bounds.left)
       , (e.pageY - draw.bounds.top)
