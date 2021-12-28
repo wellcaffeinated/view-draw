@@ -106,7 +106,8 @@ function createView(projDef, viewbox, factory) {
   var proj = makeProjection(projDef, viewbox);
   var view = {
     center: [0, 0],
-    scale: 1
+    scale: 1,
+    proj: proj
   };
   var draw = {
     proj: proj
@@ -122,11 +123,12 @@ function createView(projDef, viewbox, factory) {
     draw.height = canvas.height;
     draw.bounds = canvas.getBoundingClientRect();
     var px = draw.width / draw.bounds.width;
-    var ex = 0.5 * view.scale * draw.width / px;
-    var ey = 0.5 * view.scale * draw.height / px;
+    var ex = 0.5 * draw.width / px;
+    var ey = 0.5 * draw.height / px;
     var m = Math.max(ex, ey);
     var c = proj.to(view.center);
-    draw.cameraBounds = [-c[0] * m + ex, (1 - c[0]) * m + ex, -c[1] * m + ey, (1 - c[1]) * m + ey];
+    draw.cameraBounds = [-c[0] * m + ex, (view.scale - c[0]) * m + ex, -c[1] * m + ey, (view.scale - c[1]) * m + ey];
+    draw.worldScale = [0, -m, 0, -m];
     draw.ctx.setTransform(px, 0, 0, px, 0, 0);
     return draw;
   };
@@ -142,6 +144,23 @@ function createView(projDef, viewbox, factory) {
 
     if (draw.ctx.strokeStyle !== color) {
       draw.ctx.strokeStyle = color;
+    }
+
+    return draw;
+  };
+
+  draw.style = function (propOrObj, v) {
+    if (v !== undefined) {
+      draw.ctx[propOrObj] = v;
+      return draw;
+    }
+
+    for (var k in propOrObj) {
+      var _v = propOrObj[k];
+
+      if (draw.ctx[k] !== _v) {
+        draw.ctx[k] = _v;
+      }
     }
 
     return draw;
@@ -183,29 +202,38 @@ function createView(projDef, viewbox, factory) {
     }
 
     if (stroke) {
-      if (ctx.lineWidth !== stroke) {
-        ctx.lineWidth = stroke;
-      }
-
+      draw.style('lineWidth', stroke);
       ctx.stroke();
     }
 
     return draw;
   };
 
-  view.getMousePos = function (e, canvas) {
+  view.toViewCoords = function (pos, canvas, fromWorld) {
+    if (fromWorld === void 0) {
+      fromWorld = false;
+    }
+
     draw.init(canvas);
-    var pt = [e.pageX - draw.bounds.left, e.pageY - draw.bounds.top];
-    return proj.fromCamera(draw.cameraBounds, pt);
+    return proj.fromCamera(fromWorld ? draw.worldScale : draw.cameraBounds, pos);
   };
 
-  view.camera = function (center, zoom) {
-    if (zoom === void 0) {
-      zoom = 1;
+  view.getMousePos = function (e, canvas, fromWorld) {
+    if (fromWorld === void 0) {
+      fromWorld = false;
+    }
+
+    var pt = [e.pageX - draw.bounds.left, e.pageY - draw.bounds.top];
+    return view.toViewCoords(pt, canvas, fromWorld);
+  };
+
+  view.camera = function (center, scale) {
+    if (scale === void 0) {
+      scale = 1;
     }
 
     view.center = center;
-    view.scale = 1 / zoom;
+    view.scale = scale;
     return view;
   };
 
@@ -310,6 +338,164 @@ function createCanvas(_temp) {
     dimensions: dimensions
   };
 }
+var createDragger = function createDragger(startPos, opts) {
+  if (startPos === void 0) {
+    startPos = [0, 0];
+  }
 
-export { createCanvas, createView };
+  if (opts === void 0) {
+    opts = {};
+  }
+
+  var options = Object.assign({
+    friction: 0.02,
+    threshold: 1e-3
+  }, opts);
+  var r0 = false;
+  var pos = startPos;
+  var oldPos;
+  var dx, dy;
+  var ds;
+  var time = 0;
+  var lastDragTime;
+  var lastPos = [];
+  var now = window.performance.now.bind(window.performance);
+
+  function start(r) {
+    r0 = r;
+    oldPos = pos.slice(0);
+  }
+
+  function drag(r, zoom) {
+    if (zoom === void 0) {
+      zoom = 1;
+    }
+
+    if (!r0) {
+      return;
+    }
+
+    lastPos = pos.slice(0);
+    pos[0] = oldPos[0] + (r[0] - r0[0]) / zoom;
+    pos[1] = oldPos[1] + (r[1] - r0[1]) / zoom;
+    lastDragTime = now();
+  }
+
+  function stop(r, zoom) {
+    if (!r0) {
+      return;
+    }
+
+    dx = lastPos[0];
+    dy = lastPos[1];
+    var dt = Math.max(20, now() - lastDragTime);
+    drag(r, zoom);
+    dx = 4 * (pos[0] - dx) / dt;
+    dy = 4 * (pos[1] - dy) / dt;
+    ds = Math.sqrt(dx * dx + dy * dy);
+    r0 = false;
+  }
+
+  function momentum(t) {
+    if (!dx && !dy) {
+      return;
+    }
+
+    var dt = t - time;
+    pos[0] += dx * dt;
+    pos[1] += dy * dt;
+
+    if (dx) {
+      dx -= options.friction * dx;
+    }
+
+    if (dy) {
+      dy -= options.friction * dy;
+    }
+
+    if ((dx * dx + dy * dy) / (ds * ds) < options.threshold * options.threshold) {
+      dx = dy = 0;
+    }
+  }
+
+  function update() {
+    var t = now();
+
+    if (!r0) {
+      momentum(t);
+    }
+
+    time = t;
+    return pos;
+  }
+
+  return {
+    start: start,
+    drag: drag,
+    stop: stop,
+    update: update
+  };
+};
+function createViewport(el, options) {
+  if (options === void 0) {
+    options = {};
+  }
+
+  var state = {
+    center: [0, 0],
+    zoom: 1
+  };
+
+  function calcZoom(state, scroll, speed) {
+    if (speed === void 0) {
+      speed = 1;
+    }
+
+    return state.zoom * Math.pow(2, scroll * speed);
+  }
+
+  var getMousePos = function getMousePos(e) {
+    var offset = el.getBoundingClientRect();
+    return [-(e.pageX - offset.left) / offset.width, -(e.pageY - offset.top) / offset.height];
+  };
+
+  var dragger = createDragger(state.center, options);
+
+  var onWheel = function onWheel(e) {
+    e.preventDefault();
+    state.zoom = calcZoom(state, -e.deltaY, 0.001);
+  };
+
+  var onMouseDown = function onMouseDown(e) {
+    dragger.start(getMousePos(e));
+  };
+
+  var onMouseMove = function onMouseMove(e) {
+    dragger.drag(getMousePos(e), state.zoom);
+  };
+
+  var onMouseUp = function onMouseUp(e) {
+    dragger.stop(getMousePos(e), state.zoom);
+  };
+
+  el.addEventListener('wheel', onWheel);
+  el.addEventListener('mousedown', onMouseDown);
+  el.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+  return {
+    state: state,
+    update: function update() {
+      state.center = dragger.update();
+      return state;
+    },
+    cleanup: function cleanup() {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    }
+  };
+}
+
+export { createCanvas, createDragger, createView, createViewport };
 //# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidmlldy1kcmF3Lm1vZHVsZS5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiIifQ==

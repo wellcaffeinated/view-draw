@@ -16,7 +16,7 @@ export function createView(projDef, viewbox, factory){
 
   const proj = Projections.makeProjection(projDef, viewbox)
 
-  const view = { center: [0, 0], scale: 1 }
+  const view = { center: [0, 0], scale: 1, proj }
 
   const draw = { proj }
   draw.init = (canvas) => {
@@ -28,15 +28,18 @@ export function createView(projDef, viewbox, factory){
     draw.height = canvas.height
     draw.bounds = canvas.getBoundingClientRect()
     const px = draw.width / draw.bounds.width
-    const ex = 0.5 * view.scale * draw.width / px
-    const ey = 0.5 * view.scale * draw.height / px
+    const ex = 0.5 * draw.width / px
+    const ey = 0.5 * draw.height / px
     const m = Math.max(ex, ey)
     const c = proj.to(view.center)
     draw.cameraBounds = [
       -c[0] * m + ex
-      , (1 - c[0]) * m + ex
+      , (view.scale - c[0]) * m + ex
       , -c[1] * m + ey
-      , (1 - c[1]) * m + ey
+      , (view.scale - c[1]) * m + ey
+    ]
+    draw.worldScale = [
+      0, -m, 0, -m
     ]
     draw.ctx.setTransform(
       px, 0, 0,
@@ -59,6 +62,20 @@ export function createView(projDef, viewbox, factory){
     return draw
   }
 
+  draw.style = (propOrObj, v) => {
+    if (v !== undefined){
+      draw.ctx[propOrObj] = v
+      return draw
+    }
+    for (const k in propOrObj){
+      const v = propOrObj[k]
+      if (draw.ctx[k] !== v) {
+        draw.ctx[k] = v
+      }
+    }
+    return draw
+  }
+
   draw.dot = pt => {
     const ctx = draw.ctx
     const [x, y] = proj.toCamera(draw.cameraBounds, pt)
@@ -77,26 +94,28 @@ export function createView(projDef, viewbox, factory){
       ctx.fill()
     }
     if (stroke){
-      if (ctx.lineWidth !== stroke){
-        ctx.lineWidth = stroke
-      }
+      draw.style('lineWidth', stroke)
       ctx.stroke()
     }
     return draw
   }
 
-  view.getMousePos = (e, canvas) => {
+  view.toViewCoords = (pos, canvas, fromWorld = false) => {
     draw.init(canvas)
+    return proj.fromCamera(fromWorld ? draw.worldScale : draw.cameraBounds, pos)
+  }
+
+  view.getMousePos = (e, canvas, fromWorld = false) => {
     const pt = [
       (e.pageX - draw.bounds.left)
       , (e.pageY - draw.bounds.top)
     ]
-    return proj.fromCamera(draw.cameraBounds, pt)
+    return view.toViewCoords(pt, canvas, fromWorld)
   }
 
-  view.camera = (center, zoom = 1) => {
+  view.camera = (center, scale = 1) => {
     view.center = center
-    view.scale = 1 / zoom
+    view.scale = scale
     return view
   }
 
