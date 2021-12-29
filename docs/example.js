@@ -12,15 +12,23 @@ function* range(min, max) {
   }
 }
 
+const colors = window.chroma.brewer.OrRd.map(c => {
+  return chroma(c).alpha(0.5).css()
+})
+
 const view = createView('polar', (draw, state) => {
   draw.color('tomato')
   draw.dot([0, 0])
   let last = [0, 0]
   draw.save()
-  for (const c of state.circles){
-    draw.translate(last)
+  for (const i in state.circles){
+    const c = state.circles[i]
+    // draw.translate(last)
     last = [c.r, c.theta]
-    draw.circle(last, c.size, false, 1)
+    draw.color(colors[i])
+    draw.circle(last, c.size)
+    draw.color(colors[4])
+    draw.circle(last, c.size, false, c.borderSize)
   }
   draw.restore()
   draw.color('steelblue')
@@ -28,24 +36,32 @@ const view = createView('polar', (draw, state) => {
 })
 
 const parent = document.getElementById('content')
-const { canvas } = createCanvas({ parent })
+const { canvas } = createCanvas({ parent, background: '#dfcfc3' })
 const circles = Array.from(range(10), i => ({
   r: Math.random()
-  , theta: Math.random()
+  , theta: 0
   , size: Math.random()
+  , borderSize: Math.random() * 8
 }))
+circles.sort((a, b) => b.size - a.size)
 const tween = Tween.create({
   circles
 }, { easing: 'quadInOut' }).in('1s', {
   circles: circles.map(c => {
     return { ...c, theta: Math.random() }
   })
-}).in('1s', { circles }).loop()
+}).in('1s', { circles: circles.map(c => ({ ...c })) }).loop()
 
 const viewport = createViewport(canvas)
+viewport.state.zoom = 0.4
 // view.camera([0, 0], 1)
+let pause = false
 animationFrames().pipe(tween).subscribe(state => {
+  if (pause){ return }
   const cam = viewport.update()
   view.camera(view.toViewCoords(cam.center, canvas, true), cam.zoom)
   view.draw(canvas, state)
 })
+
+window.addEventListener('mousedown', () => (pause = true))
+window.addEventListener('mouseup', () => (pause = false))

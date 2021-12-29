@@ -1,6 +1,6 @@
 {
-  "name": "view-draw",
-  "version": "1.0.0",
+  "name": "@wellcaffeinated/view-draw",
+  "version": "0.0.1",
   "description": "Tiny Canvas Draw Toolkit",
   "main": "dist/view-draw.js",
   "module": "dist/view-draw.module.js",
@@ -22,13 +22,9 @@
     "type": "git",
     "url": ""
   },
-  "keywords": [
-  ],
+  "keywords": [],
   "author": "wellcaffeinated",
-  "license": "GPLv3",
-  "bugs": {
-    "url": ""
-  },
+  "license": "GPL-3.0",
   "homepage": "",
   "devDependencies": {
     "@babel/cli": "^7.1.5",
@@ -54,5 +50,7 @@
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-terser": "^7.0.2"
   },
-  "dependencies": {}
+  "directories": {
+    "doc": "docs"
+  }
 }
