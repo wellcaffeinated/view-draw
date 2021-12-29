@@ -13,7 +13,7 @@ function* range(min, max) {
 }
 
 const colors = window.chroma.brewer.OrRd.map(c => {
-  return chroma(c).alpha(0.5).css()
+  return window.chroma(c).alpha(0.5).css()
 })
 
 const view = createView('polar', (draw, state) => {
@@ -36,7 +36,7 @@ const view = createView('polar', (draw, state) => {
 })
 
 const parent = document.getElementById('content')
-const { canvas } = createCanvas({ parent, background: '#dfcfc3' })
+const { canvas } = createCanvas({ el: parent, background: '#dfcfc3' })
 const circles = Array.from(range(10), i => ({
   r: Math.random()
   , theta: 0
@@ -55,13 +55,9 @@ const tween = Tween.create({
 const viewport = createViewport(canvas)
 viewport.state.zoom = 0.4
 // view.camera([0, 0], 1)
-let pause = false
 animationFrames().pipe(tween).subscribe(state => {
-  if (pause){ return }
   const cam = viewport.update()
   view.camera(view.toViewCoords(cam.center, canvas, true), cam.zoom)
   view.draw(canvas, state)
 })
 
-window.addEventListener('mousedown', () => (pause = true))
-window.addEventListener('mouseup', () => (pause = false))

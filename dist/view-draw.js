@@ -1,5 +1,5 @@
 /**
- * view-draw 1.0.0
+ * view-draw 0.0.1
  * @license MIT
  * Copyright 2021-present Jasper Palfree
  */
@@ -95,7 +95,14 @@
     polar: polar
   });
 
-  function createView(projDef, viewbox, factory) {
+  function createView(projDef, viewbox, factory, options) {
+    if (options === void 0) {
+      options = {
+        scaleMode: 'fit' // or fill
+
+      };
+    }
+
     if (typeof projDef === 'string') {
       projDef = Projections[projDef];
     } else if (projDef !== 'object') {
@@ -131,7 +138,7 @@
       var px = draw.width / draw.bounds.width;
       var ex = 0.5 * draw.width / px;
       var ey = 0.5 * draw.height / px;
-      var m = Math.max(ex, ey);
+      var m = options.scaleMode === 'fit' ? Math.min(ex, ey) : Math.max(ex, ey);
       var s = m * view.scale;
       var c = proj.to(view.center);
       draw.cameraBounds = [-c[0] * s + ex, (1 - c[0]) * s + ex, -c[1] * s + ey, (1 - c[1]) * s + ey];
@@ -303,48 +310,57 @@
         _ref$height = _ref.height,
         height = _ref$height === void 0 ? 0 : _ref$height,
         _ref$aspectRatio = _ref.aspectRatio,
-        aspectRatio = _ref$aspectRatio === void 0 ? 16 / 9 : _ref$aspectRatio,
-        _ref$parent = _ref.parent,
-        parent = _ref$parent === void 0 ? document.body : _ref$parent,
+        aspectRatio = _ref$aspectRatio === void 0 ? null : _ref$aspectRatio,
+        _ref$el = _ref.el,
+        el = _ref$el === void 0 ? document.body : _ref$el,
         _ref$background = _ref.background,
         background = _ref$background === void 0 ? 'hsl(0, 0%, 10%)' : _ref$background,
         _ref$onResize = _ref.onResize,
         onResize = _ref$onResize === void 0 ? function () {} : _ref$onResize;
 
-    var wrap = document.createElement('div');
-    var canvas = document.createElement('canvas');
+    var canvas = el.tagName === 'CANVAS' ? el : document.createElement('canvas');
     var ctx = canvas.getContext('2d');
     var resize = {
       w: !width,
       h: !height
     };
     var dimensions = {};
-    wrap.style.overflow = 'hidden';
+    canvas.style.display = 'flex';
     canvas.style.background = background;
     canvas.style.transform = "scale(" + 1 / pixelRatio + ")";
     canvas.style.transformOrigin = 'top left';
 
+    if (el.tagName !== 'CANVAS') {
+      el.appendChild(canvas);
+    }
+
     var _onResize = function _onResize() {
+      var parent = canvas.parentNode;
+
+      if (!parent) {
+        return;
+      }
+
       if (resize.w) {
-        width = parent.offsetWidth;
+        width = parent.clientWidth;
       }
 
       if (resize.h) {
-        height = width / aspectRatio;
+        if (aspectRatio) {
+          height = width / aspectRatio;
+        } else {
+          height = parent.clientHeight;
+        }
       }
 
       dimensions.width = width;
       dimensions.height = height;
+      canvas.style.marginBottom = (1 - pixelRatio) * height + 'px';
       canvas.width = pixelRatio * width;
-      canvas.height = pixelRatio * height; // ctx.scale(pixelRatio, pixelRatio)
-
-      wrap.style.width = width + 'px';
-      wrap.style.height = height + 'px';
+      canvas.height = pixelRatio * height;
+      ctx.scale(pixelRatio, pixelRatio);
       onResize(dimensions);
     };
-
-    wrap.appendChild(canvas);
-    parent.appendChild(wrap);
 
     if (autoResize) {
       window.addEventListener('resize', _onResize);
@@ -357,14 +373,17 @@
         window.removeEventListener('resize', _onResize);
       }
 
-      canvas.parentNode.removeChild(canvas);
+      if (canvas.parentNode) {
+        canvas.parentNode.removeChild(canvas);
+      }
     };
 
     return {
       canvas: canvas,
       ctx: ctx,
       destroy: destroy,
-      dimensions: dimensions
+      dimensions: dimensions,
+      refresh: _onResize
     };
   }
   var createDragger = function createDragger(startPos, opts) {

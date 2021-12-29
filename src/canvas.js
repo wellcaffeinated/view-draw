@@ -3,45 +3,52 @@ export function createCanvas({
   pixelRatio = window.devicePixelRatio || 1,
   width = 0,
   height = 0,
-  aspectRatio = 16 / 9,
-  parent = document.body,
+  aspectRatio = null,
+  el = document.body,
   background = 'hsl(0, 0%, 10%)',
   onResize = () => {}
 } = {}) {
-  const wrap = document.createElement('div')
-  const canvas = document.createElement('canvas')
+
+  const canvas = el.tagName === 'CANVAS' ? el : document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   const resize = { w: !width, h: !height }
   const dimensions = {}
 
-  wrap.style.overflow = 'hidden'
-
+  canvas.style.display = 'flex'
   canvas.style.background = background
   canvas.style.transform = `scale(${1 / pixelRatio})`
   canvas.style.transformOrigin = 'top left'
 
+  if (el.tagName !== 'CANVAS') {
+    el.appendChild(canvas)
+  }
+
   const _onResize = () => {
+    const parent = canvas.parentNode
+    if (!parent){ return }
+
     if (resize.w) {
-      width = parent.offsetWidth
+      width = parent.clientWidth
     }
 
     if (resize.h) {
-      height = width / aspectRatio
+      if (aspectRatio){
+        height = width / aspectRatio
+      } else {
+        height = parent.clientHeight
+      }
     }
 
     dimensions.width = width
     dimensions.height = height
 
+    canvas.style.marginBottom = ((1 - pixelRatio) * height) + 'px'
+
     canvas.width = pixelRatio * width
     canvas.height = pixelRatio * height
-    // ctx.scale(pixelRatio, pixelRatio)
-    wrap.style.width = width + 'px'
-    wrap.style.height = height + 'px'
+    ctx.scale(pixelRatio, pixelRatio)
     onResize(dimensions)
   }
-
-  wrap.appendChild(canvas)
-  parent.appendChild(wrap)
 
   if (autoResize) {
     window.addEventListener('resize', _onResize)
@@ -53,7 +60,9 @@ export function createCanvas({
     if (autoResize) {
       window.removeEventListener('resize', _onResize)
     }
-    canvas.parentNode.removeChild(canvas)
+    if (canvas.parentNode){
+      canvas.parentNode.removeChild(canvas)
+    }
   }
 
   return {
@@ -61,6 +70,7 @@ export function createCanvas({
     , ctx
     , destroy
     , dimensions
+    , refresh: _onResize
   }
 }
 

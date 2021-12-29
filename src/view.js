@@ -1,6 +1,8 @@
 import * as Projections from './projections.js'
 
-export function createView(projDef, viewbox, factory){
+export function createView(projDef, viewbox, factory, options = {
+  scaleMode: 'fit' // or fill
+}){
   if (typeof projDef === 'string'){
     projDef = Projections[projDef]
   } else if (projDef !== 'object'){
@@ -30,7 +32,7 @@ export function createView(projDef, viewbox, factory){
     const px = draw.width / draw.bounds.width
     const ex = 0.5 * draw.width / px
     const ey = 0.5 * draw.height / px
-    const m = Math.max(ex, ey)
+    const m = options.scaleMode === 'fit' ? Math.min(ex, ey) : Math.max(ex, ey)
     const s = m * view.scale
     const c = proj.to(view.center)
     draw.cameraBounds = [
