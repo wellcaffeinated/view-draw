@@ -95,6 +95,248 @@
     polar: polar
   });
 
+  function centroid(points) {
+    var x = 0;
+    var y = 0;
+    var l = points.length;
+
+    for (var i = 0; i < l; i++) {
+      var pt = points[i];
+      x += pt[0];
+      y += pt[1];
+    }
+
+    return [x / l, y / l];
+  }
+  function triangleFromSides(a, b, c) {
+    var biggest = Math.max(a, b, c);
+
+    if (biggest === a) {
+      var _ref = [c, a];
+      a = _ref[0];
+      c = _ref[1];
+    } else if (biggest === b) {
+      var _ref2 = [c, b];
+      b = _ref2[0];
+      c = _ref2[1];
+    }
+
+    var projA = a === 0 ? 0 : (a * a - b * b + c * c) / (2 * c);
+    var h = Math.sqrt(a * a - projA * projA);
+    var points = [[0, 0], [projA, h], [c, 0]];
+    return points;
+  }
+
+  var Draw = /*#__PURE__*/function () {
+    Draw.create = function create(proj, options) {
+      if (options === void 0) {
+        options = {};
+      }
+
+      return new Draw(proj, options);
+    };
+
+    function Draw(proj, options) {
+      this.proj = proj;
+      this.options = options;
+    }
+
+    var _proto = Draw.prototype;
+
+    _proto.init = function init(canvas, view) {
+      if (canvas !== this.canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+      }
+
+      this.width = canvas.width;
+      this.height = canvas.height;
+      this.bounds = canvas.getBoundingClientRect();
+      var px = this.width / this.bounds.width;
+      var ex = 0.5 * this.width / px;
+      var ey = 0.5 * this.height / px;
+      var m = this.options.scaleMode === 'fit' ? Math.min(ex, ey) : Math.max(ex, ey);
+      var s = m * view.scale;
+      var c = this.proj.to(view.center);
+      this.cameraBounds = [-c[0] * s + ex, (1 - c[0]) * s + ex, -c[1] * s + ey, (1 - c[1]) * s + ey];
+      this.worldUnit = [0, m, 0, m];
+      this.worldScale = [0, s, 0, s];
+      this.ctx.setTransform(px, 0, 0, px, 0, 0);
+      return this;
+    };
+
+    _proto.save = function save() {
+      this.ctx.save();
+    };
+
+    _proto.restore = function restore() {
+      this.ctx.restore();
+    };
+
+    _proto.clear = function clear() {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+    };
+
+    _proto.color = function color(_color) {
+      if (this.ctx.fillStyle !== _color) {
+        this.ctx.fillStyle = _color;
+      }
+
+      if (this.ctx.strokeStyle !== _color) {
+        this.ctx.strokeStyle = _color;
+      }
+
+      return this;
+    };
+
+    _proto.style = function style(propOrObj, v) {
+      if (v !== undefined) {
+        this.ctx[propOrObj] = v;
+        return this;
+      }
+
+      for (var k in propOrObj) {
+        var _v = propOrObj[k];
+
+        if (this.ctx[k] !== _v) {
+          this.ctx[k] = _v;
+        }
+      }
+
+      return this;
+    };
+
+    _proto.translate = function translate(pt) {
+      var ctx = this.ctx;
+
+      var _this$proj$toCamera = this.proj.toCamera(this.worldScale, pt),
+          x = _this$proj$toCamera[0],
+          y = _this$proj$toCamera[1];
+
+      ctx.translate(x, y);
+      return this;
+    };
+
+    _proto.rotate = function rotate(angle) {
+      var o = this.proj.toCamera(this.cameraBounds, [0, 0]);
+      this.ctx.translate(o[0], o[1]);
+      this.ctx.rotate(angle);
+      this.ctx.translate(-o[0], -o[1]);
+      return this;
+    };
+
+    _proto.dot = function dot(pt) {
+      var ctx = this.ctx;
+
+      var _this$proj$toCamera2 = this.proj.toCamera(this.cameraBounds, pt),
+          x = _this$proj$toCamera2[0],
+          y = _this$proj$toCamera2[1];
+
+      ctx.beginPath();
+      ctx.arc(x, y, 1, 0, 2 * Math.PI);
+      ctx.fill();
+      return this;
+    };
+
+    _proto.paint = function paint(fill, stroke) {
+      if (fill === void 0) {
+        fill = true;
+      }
+
+      if (stroke === void 0) {
+        stroke = 0;
+      }
+
+      var ctx = this.ctx;
+
+      if (fill) {
+        ctx.fill();
+      }
+
+      if (stroke) {
+        this.style('lineWidth', stroke);
+        ctx.stroke();
+      }
+
+      return this;
+    };
+
+    _proto.circle = function circle(pt, r, fill, stroke) {
+      if (fill === void 0) {
+        fill = true;
+      }
+
+      if (stroke === void 0) {
+        stroke = 0;
+      }
+
+      var ctx = this.ctx;
+
+      var _this$proj$toCamera3 = this.proj.toCamera(this.cameraBounds, pt),
+          x = _this$proj$toCamera3[0],
+          y = _this$proj$toCamera3[1];
+
+      r = this.proj.toCameraSize(this.cameraBounds, r);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, 2 * Math.PI);
+      this.paint(fill, stroke);
+      return this;
+    };
+
+    _proto.path = function path(points, closed, fill, stroke) {
+      if (closed === void 0) {
+        closed = false;
+      }
+
+      var ctx = this.ctx;
+      ctx.beginPath();
+      var pt = this.proj.toCamera(this.cameraBounds, points[0]);
+      ctx.moveTo(pt[0], pt[1]);
+
+      for (var i = 1, l = points.length; i < l; i++) {
+        pt = this.proj.toCamera(this.cameraBounds, points[i]);
+        ctx.lineTo(pt[0], pt[1]);
+      }
+
+      if (closed) {
+        ctx.closePath();
+      }
+
+      this.paint(fill, stroke);
+      return this;
+    };
+
+    _proto.triangle = function triangle(a, b, c, _temp, angle, fill, stroke) {
+      var _ref = _temp === void 0 ? [0, 0] : _temp,
+          x0 = _ref[0],
+          y0 = _ref[1];
+
+      if (angle === void 0) {
+        angle = 0;
+      }
+
+      var points = triangleFromSides(a, b, c);
+
+      var _geometry$centroid = centroid(points),
+          cx = _geometry$centroid[0],
+          cy = _geometry$centroid[1];
+
+      for (var i = 0, l = points.length; i < l; i++) {
+        points[i][0] -= cx;
+        points[i][1] -= cy;
+      }
+
+      this.save();
+      this.translate([x0, y0]);
+      this.rotate(angle);
+      this.path(points, true, fill, stroke);
+      this.restore();
+      return this;
+    };
+
+    return Draw;
+  }();
+
   function createView(projDef, viewbox, factory, options) {
     if (options === void 0) {
       options = {
@@ -122,134 +364,14 @@
       scale: 1,
       proj: proj
     };
-    var draw = {
-      proj: proj
-    };
-
-    draw.init = function (canvas) {
-      if (canvas !== draw.canvas) {
-        draw.canvas = canvas;
-        draw.ctx = canvas.getContext('2d');
-      }
-
-      draw.width = canvas.width;
-      draw.height = canvas.height;
-      draw.bounds = canvas.getBoundingClientRect();
-      var px = draw.width / draw.bounds.width;
-      var ex = 0.5 * draw.width / px;
-      var ey = 0.5 * draw.height / px;
-      var m = options.scaleMode === 'fit' ? Math.min(ex, ey) : Math.max(ex, ey);
-      var s = m * view.scale;
-      var c = proj.to(view.center);
-      draw.cameraBounds = [-c[0] * s + ex, (1 - c[0]) * s + ex, -c[1] * s + ey, (1 - c[1]) * s + ey];
-      draw.worldUnit = [0, m, 0, m];
-      draw.worldScale = [0, s, 0, s];
-      draw.ctx.setTransform(px, 0, 0, px, 0, 0);
-      return draw;
-    };
-
-    draw.save = function () {
-      return draw.ctx.save();
-    };
-
-    draw.restore = function () {
-      return draw.ctx.restore();
-    };
-
-    draw.clear = function () {
-      draw.ctx.clearRect(0, 0, draw.width, draw.height);
-    };
-
-    draw.color = function (color) {
-      if (draw.ctx.fillStyle !== color) {
-        draw.ctx.fillStyle = color;
-      }
-
-      if (draw.ctx.strokeStyle !== color) {
-        draw.ctx.strokeStyle = color;
-      }
-
-      return draw;
-    };
-
-    draw.style = function (propOrObj, v) {
-      if (v !== undefined) {
-        draw.ctx[propOrObj] = v;
-        return draw;
-      }
-
-      for (var k in propOrObj) {
-        var _v = propOrObj[k];
-
-        if (draw.ctx[k] !== _v) {
-          draw.ctx[k] = _v;
-        }
-      }
-
-      return draw;
-    };
-
-    draw.translate = function (pt) {
-      var ctx = draw.ctx;
-
-      var _proj$toCamera = proj.toCamera(draw.worldScale, pt),
-          x = _proj$toCamera[0],
-          y = _proj$toCamera[1];
-
-      ctx.translate(x, y);
-      return draw;
-    };
-
-    draw.dot = function (pt) {
-      var ctx = draw.ctx;
-
-      var _proj$toCamera2 = proj.toCamera(draw.cameraBounds, pt),
-          x = _proj$toCamera2[0],
-          y = _proj$toCamera2[1];
-
-      ctx.beginPath();
-      ctx.arc(x, y, 1, 0, 2 * Math.PI);
-      ctx.fill();
-      return draw;
-    };
-
-    draw.circle = function (pt, r, fill, stroke) {
-      if (fill === void 0) {
-        fill = true;
-      }
-
-      if (stroke === void 0) {
-        stroke = 0;
-      }
-
-      var ctx = draw.ctx;
-
-      var _proj$toCamera3 = proj.toCamera(draw.cameraBounds, pt),
-          x = _proj$toCamera3[0],
-          y = _proj$toCamera3[1];
-
-      r = proj.toCameraSize(draw.cameraBounds, r);
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, 2 * Math.PI);
-
-      if (fill) {
-        ctx.fill();
-      }
-
-      if (stroke) {
-        draw.style('lineWidth', stroke);
-        ctx.stroke();
-      }
-
-      return draw;
-    };
+    var draw = Draw.create(proj, options);
 
     view.toViewCoords = function (pos, canvas, fromWorld) {
       if (fromWorld === void 0) {
         fromWorld = false;
       }
 
-      draw.init(canvas);
+      draw.init(canvas, view);
       return proj.fromCamera(fromWorld ? draw.worldUnit : draw.cameraBounds, pos);
     };
 
@@ -258,7 +380,7 @@
         fromWorld = false;
       }
 
-      draw.init(canvas);
+      draw.init(canvas, view);
       var pt = [e.pageX - draw.bounds.left, e.pageY - draw.bounds.top];
       return view.toViewCoords(pt, canvas, fromWorld);
     };
@@ -274,7 +396,7 @@
     };
 
     view.draw = function (canvas) {
-      draw.init(canvas);
+      draw.init(canvas, view);
       draw.clear();
 
       for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
@@ -286,7 +408,7 @@
     };
 
     view.drawOver = function (canvas) {
-      draw.init(canvas);
+      draw.init(canvas, view);
 
       for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
         args[_key2 - 1] = arguments[_key2];

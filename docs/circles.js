@@ -36,7 +36,7 @@ const view = createView('polar', (draw, state) => {
 })
 
 const parent = document.getElementById('content')
-const { canvas } = createCanvas({ el: parent, background: '#dfcfc3' })
+const { canvas } = createCanvas({ el: parent, background: '#dfcfc3', aspectRatio: 16 / 9 })
 const circles = Array.from(range(10), i => ({
   r: Math.random()
   , theta: 0
