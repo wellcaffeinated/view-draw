@@ -108,7 +108,11 @@
 
     return [x / l, y / l];
   }
-  function triangleFromSides(a, b, c) {
+  function triangleFromSides(a, b, c, relCentroid) {
+    if (relCentroid === void 0) {
+      relCentroid = true;
+    }
+
     var biggest = Math.max(a, b, c);
 
     if (biggest === a) {
@@ -124,8 +128,26 @@
     var projA = a === 0 ? 0 : (a * a - b * b + c * c) / (2 * c);
     var h = Math.sqrt(a * a - projA * projA);
     var points = [[0, 0], [projA, h], [c, 0]];
+
+    if (relCentroid) {
+      var _centroid = centroid(points),
+          cx = _centroid[0],
+          cy = _centroid[1];
+
+      for (var i = 0, l = points.length; i < l; i++) {
+        points[i][0] -= cx;
+        points[i][1] -= cy;
+      }
+    }
+
     return points;
   }
+
+  var geometry = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    centroid: centroid,
+    triangleFromSides: triangleFromSides
+  });
 
   var Draw = /*#__PURE__*/function () {
     Draw.create = function create(proj, options) {
@@ -316,16 +338,6 @@
       }
 
       var points = triangleFromSides(a, b, c);
-
-      var _geometry$centroid = centroid(points),
-          cx = _geometry$centroid[0],
-          cy = _geometry$centroid[1];
-
-      for (var i = 0, l = points.length; i < l; i++) {
-        points[i][0] -= cx;
-        points[i][1] -= cy;
-      }
-
       this.save();
       this.translate([x0, y0]);
       this.rotate(angle);
@@ -672,6 +684,7 @@
   exports.createDragger = createDragger;
   exports.createView = createView;
   exports.createViewport = createViewport;
+  exports.geometry = geometry;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 

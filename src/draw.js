@@ -143,11 +143,6 @@ export class Draw {
 
   triangle(a, b, c, [x0, y0] = [0, 0], angle = 0, fill, stroke){
     const points = geometry.triangleFromSides(a, b, c)
-    const [cx, cy] = geometry.centroid(points)
-    for (let i = 0, l = points.length; i < l; i++) {
-      points[i][0] -= cx
-      points[i][1] -= cy
-    }
 
     this.save()
     this.translate([x0, y0])

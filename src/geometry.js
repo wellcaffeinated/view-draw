@@ -10,7 +10,7 @@ export function centroid(points){
   return [x / l, y / l]
 }
 
-export function triangleFromSides(a, b, c){
+export function triangleFromSides(a, b, c, relCentroid = true){
   const biggest = Math.max(a, b, c)
   if (biggest === a) {
     [a, c] = [c, a]
@@ -24,6 +24,14 @@ export function triangleFromSides(a, b, c){
     , [projA, h]
     , [c, 0]
   ]
+
+  if (relCentroid){
+    const [cx, cy] = centroid(points)
+    for (let i = 0, l = points.length; i < l; i++) {
+      points[i][0] -= cx
+      points[i][1] -= cy
+    }
+  }
 
   return points
 }
