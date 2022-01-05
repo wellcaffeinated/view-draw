@@ -52,5 +52,6 @@
   },
   "directories": {
     "doc": "docs"
-  }
+  },
+  "dependencies": {}
 }

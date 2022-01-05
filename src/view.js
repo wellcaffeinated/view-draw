@@ -55,5 +55,10 @@ export function createView(projDef, viewbox, factory, options = {
     return view
   }
 
+  view.setViewbox = (viewbox) => {
+    proj.viewbox = viewbox
+    return view
+  }
+
   return view
 }

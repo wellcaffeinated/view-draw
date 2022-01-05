@@ -79,6 +79,8 @@ export const createDragger = (startPos = [0, 0], opts = {}) => {
     {
       friction: 0.02
       , threshold: 1e-3
+      , minFlick: 0.1
+      , maxFlick: 8
     },
     opts
   )
@@ -90,6 +92,7 @@ export const createDragger = (startPos = [0, 0], opts = {}) => {
   let time = 0
   let lastDragTime
   let lastPos = []
+  let dt = 0
   const now = window.performance.now.bind(window.performance)
 
   function start(r) {
@@ -104,21 +107,36 @@ export const createDragger = (startPos = [0, 0], opts = {}) => {
     lastPos = pos.slice(0)
     pos[0] = oldPos[0] + (r[0] - r0[0]) / zoom
     pos[1] = oldPos[1] + (r[1] - r0[1]) / zoom
-    lastDragTime = now()
+    const t = now()
+    dt = Math.max(20, t - lastDragTime)
+    lastDragTime = t
   }
 
-  function stop(r, zoom) {
+  function stop(r, zoom = 1) {
     if (!r0) {
       return
     }
-    dx = lastPos[0]
-    dy = lastPos[1]
-    const dt = Math.max(20, now() - lastDragTime)
-    drag(r, zoom)
-    dx = (4 * (pos[0] - dx)) / dt
-    dy = (4 * (pos[1] - dy)) / dt
-    ds = Math.sqrt(dx * dx + dy * dy)
     r0 = false
+    if ((now() - lastDragTime) > 50){
+      dx = dy = 0
+      return
+    }
+    dx = (pos[0] - lastPos[0])
+    dy = (pos[1] - lastPos[1])
+    ds = Math.sqrt(dx * dx + dy * dy)
+    if (ds < options.minFlick / zoom){
+      ds = 0
+      dx = 0
+      dy = 0
+    } else if (ds > options.maxFlick / zoom){
+      const max = options.maxFlick / zoom / ds
+      dx *= max
+      dy *= max
+      ds = options.maxFlick
+    }
+    dx *= 4 / dt
+    dy *= 4 / dt
+    ds *= 4 / dt
   }
 
   function momentum(t) {
@@ -155,6 +173,10 @@ export const createDragger = (startPos = [0, 0], opts = {}) => {
     start
     , drag
     , stop
+    , set: ([x, y]) => {
+      pos[0] = x
+      pos[1] = y
+    }
     , update
   }
 }
@@ -164,12 +186,19 @@ export function createViewport(el, options = {}) {
     center: [0, 0]
     , zoom: 1
   }
+  const pointers = new Map()
+
+  function dist([x1, y1], [x2, y2]){
+    y2 -= y1
+    x2 -= x1
+    return Math.sqrt(x2 * x2 + y2 * y2)
+  }
 
   function calcZoom(state, scroll, speed = 1) {
     return state.zoom * Math.pow(2, scroll * speed)
   }
 
-  const getMousePos = (e) => {
+  const getPointerPos = (e) => {
     const offset = el.getBoundingClientRect()
     // reversed because we want to move viewport opposite of drag
     return [
@@ -178,40 +207,79 @@ export function createViewport(el, options = {}) {
     ]
   }
 
+  let pinchStart = 0
+  let zoomStart = 1
+  let doPinch = false
+  const pinchZoom = e => {
+    if (pointers.size !== 2) { return }
+    const ps = Array.from(pointers.values(), e => getPointerPos(e))
+    const d = dist(ps[0], ps[1])
+    if (pinchStart){
+      state.zoom = zoomStart * d / pinchStart
+    } else {
+      pinchStart = d
+      zoomStart = state.zoom
+    }
+  }
+
   const dragger = createDragger(state.center, options)
   const onWheel = (e) => {
     e.preventDefault()
     state.zoom = calcZoom(state, -e.deltaY, 0.001)
   }
 
-  const onMouseDown = (e) => {
-    dragger.start(getMousePos(e))
+  const onPointerDown = (e) => {
+    pointers.set(e.pointerId, e)
+    dragger.start(getPointerPos(e))
+    if (pointers.size === 2) {
+      doPinch = true
+      dragger.stop(getPointerPos(e), state.zoom)
+    }
   }
 
-  const onMouseMove = (e) => {
-    dragger.drag(getMousePos(e), state.zoom)
+  const onPointerMove = (e) => {
+    pointers.set(e.pointerId, e)
+    if (doPinch){
+      pinchZoom(e)
+    } else {
+      dragger.drag(getPointerPos(e), state.zoom)
+    }
   }
 
-  const onMouseUp = (e) => {
-    dragger.stop(getMousePos(e), state.zoom)
+  const onPointerUp = (e) => {
+    pointers.delete(e.pointerId)
+    pinchStart = 0
+    if (!doPinch){
+      dragger.stop(getPointerPos(e), state.zoom)
+    }
+    if (pointers.size === 0){
+      doPinch = false
+    }
   }
 
+  const prevStyle = el.style.touchAction
+  el.style.touchAction = 'none'
   el.addEventListener('wheel', onWheel)
-  el.addEventListener('mousedown', onMouseDown)
-  el.addEventListener('mousemove', onMouseMove)
-  window.addEventListener('mouseup', onMouseUp)
+  el.addEventListener('pointerdown', onPointerDown)
+  el.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
 
   return {
     state
+    , setCenter(pos){
+      dragger.set(pos)
+      return this
+    }
     , update() {
       state.center = dragger.update()
       return state
     }
     , cleanup() {
+      el.style.touchAction = prevStyle
       el.removeEventListener('wheel', onWheel)
-      el.removeEventListener('mousedown', onMouseDown)
-      el.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+      el.removeEventListener('pointerdown', onPointerDown)
+      el.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
     }
   }
 }

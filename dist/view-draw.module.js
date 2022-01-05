@@ -143,6 +143,7 @@ var geometry = /*#__PURE__*/Object.freeze({
   triangleFromSides: triangleFromSides
 });
 
+var UNIT_BOUNDS = [0, 1, 0, 1];
 var Draw = /*#__PURE__*/function () {
   Draw.create = function create(proj, options) {
     if (options === void 0) {
@@ -173,7 +174,7 @@ var Draw = /*#__PURE__*/function () {
     var ey = 0.5 * this.height / px;
     var m = this.options.scaleMode === 'fit' ? Math.min(ex, ey) : Math.max(ex, ey);
     var s = m * view.scale;
-    var c = this.proj.to(view.center);
+    var c = this.proj.toCamera(UNIT_BOUNDS, view.center);
     this.cameraBounds = [-c[0] * s + ex, (1 - c[0]) * s + ex, -c[1] * s + ey, (1 - c[1]) * s + ey];
     this.worldUnit = [0, m, 0, m];
     this.worldScale = [0, s, 0, s];
@@ -241,7 +242,11 @@ var Draw = /*#__PURE__*/function () {
     return this;
   };
 
-  _proto.dot = function dot(pt) {
+  _proto.dot = function dot(pt, size) {
+    if (size === void 0) {
+      size = 1;
+    }
+
     var ctx = this.ctx;
 
     var _this$proj$toCamera2 = this.proj.toCamera(this.cameraBounds, pt),
@@ -249,7 +254,7 @@ var Draw = /*#__PURE__*/function () {
         y = _this$proj$toCamera2[1];
 
     ctx.beginPath();
-    ctx.arc(x, y, 1, 0, 2 * Math.PI);
+    ctx.arc(x, y, size, 0, 2 * Math.PI);
     ctx.fill();
     return this;
   };
@@ -424,6 +429,11 @@ function createView(projDef, viewbox, factory, options) {
     return view;
   };
 
+  view.setViewbox = function (viewbox) {
+    proj.viewbox = viewbox;
+    return view;
+  };
+
   return view;
 }
 
@@ -525,7 +535,9 @@ var createDragger = function createDragger(startPos, opts) {
 
   var options = Object.assign({
     friction: 0.02,
-    threshold: 1e-3
+    threshold: 1e-3,
+    minFlick: 0.1,
+    maxFlick: 8
   }, opts);
   var r0 = false;
   var pos = startPos;
@@ -535,6 +547,7 @@ var createDragger = function createDragger(startPos, opts) {
   var time = 0;
   var lastDragTime;
   var lastPos = [];
+  var dt = 0;
   var now = window.performance.now.bind(window.performance);
 
   function start(r) {
@@ -554,22 +567,45 @@ var createDragger = function createDragger(startPos, opts) {
     lastPos = pos.slice(0);
     pos[0] = oldPos[0] + (r[0] - r0[0]) / zoom;
     pos[1] = oldPos[1] + (r[1] - r0[1]) / zoom;
-    lastDragTime = now();
+    var t = now();
+    dt = Math.max(20, t - lastDragTime);
+    lastDragTime = t;
   }
 
   function stop(r, zoom) {
+    if (zoom === void 0) {
+      zoom = 1;
+    }
+
     if (!r0) {
       return;
     }
 
-    dx = lastPos[0];
-    dy = lastPos[1];
-    var dt = Math.max(20, now() - lastDragTime);
-    drag(r, zoom);
-    dx = 4 * (pos[0] - dx) / dt;
-    dy = 4 * (pos[1] - dy) / dt;
-    ds = Math.sqrt(dx * dx + dy * dy);
     r0 = false;
+
+    if (now() - lastDragTime > 50) {
+      dx = dy = 0;
+      return;
+    }
+
+    dx = pos[0] - lastPos[0];
+    dy = pos[1] - lastPos[1];
+    ds = Math.sqrt(dx * dx + dy * dy);
+
+    if (ds < options.minFlick / zoom) {
+      ds = 0;
+      dx = 0;
+      dy = 0;
+    } else if (ds > options.maxFlick / zoom) {
+      var max = options.maxFlick / zoom / ds;
+      dx *= max;
+      dy *= max;
+      ds = options.maxFlick;
+    }
+
+    dx *= 4 / dt;
+    dy *= 4 / dt;
+    ds *= 4 / dt;
   }
 
   function momentum(t) {
@@ -609,6 +645,12 @@ var createDragger = function createDragger(startPos, opts) {
     start: start,
     drag: drag,
     stop: stop,
+    set: function set(_ref2) {
+      var x = _ref2[0],
+          y = _ref2[1];
+      pos[0] = x;
+      pos[1] = y;
+    },
     update: update
   };
 };
@@ -621,6 +663,17 @@ function createViewport(el, options) {
     center: [0, 0],
     zoom: 1
   };
+  var pointers = new Map();
+
+  function dist(_ref3, _ref4) {
+    var x1 = _ref3[0],
+        y1 = _ref3[1];
+    var x2 = _ref4[0],
+        y2 = _ref4[1];
+    y2 -= y1;
+    x2 -= x1;
+    return Math.sqrt(x2 * x2 + y2 * y2);
+  }
 
   function calcZoom(state, scroll, speed) {
     if (speed === void 0) {
@@ -630,10 +683,32 @@ function createViewport(el, options) {
     return state.zoom * Math.pow(2, scroll * speed);
   }
 
-  var getMousePos = function getMousePos(e) {
+  var getPointerPos = function getPointerPos(e) {
     var offset = el.getBoundingClientRect(); // reversed because we want to move viewport opposite of drag
 
     return [-(e.pageX - offset.left), -(e.pageY - offset.top)];
+  };
+
+  var pinchStart = 0;
+  var zoomStart = 1;
+  var doPinch = false;
+
+  var pinchZoom = function pinchZoom(e) {
+    if (pointers.size !== 2) {
+      return;
+    }
+
+    var ps = Array.from(pointers.values(), function (e) {
+      return getPointerPos(e);
+    });
+    var d = dist(ps[0], ps[1]);
+
+    if (pinchStart) {
+      state.zoom = zoomStart * d / pinchStart;
+    } else {
+      pinchStart = d;
+      zoomStart = state.zoom;
+    }
   };
 
   var dragger = createDragger(state.center, options);
@@ -643,33 +718,61 @@ function createViewport(el, options) {
     state.zoom = calcZoom(state, -e.deltaY, 0.001);
   };
 
-  var onMouseDown = function onMouseDown(e) {
-    dragger.start(getMousePos(e));
+  var onPointerDown = function onPointerDown(e) {
+    pointers.set(e.pointerId, e);
+    dragger.start(getPointerPos(e));
+
+    if (pointers.size === 2) {
+      doPinch = true;
+      dragger.stop(getPointerPos(e), state.zoom);
+    }
   };
 
-  var onMouseMove = function onMouseMove(e) {
-    dragger.drag(getMousePos(e), state.zoom);
+  var onPointerMove = function onPointerMove(e) {
+    pointers.set(e.pointerId, e);
+
+    if (doPinch) {
+      pinchZoom();
+    } else {
+      dragger.drag(getPointerPos(e), state.zoom);
+    }
   };
 
-  var onMouseUp = function onMouseUp(e) {
-    dragger.stop(getMousePos(e), state.zoom);
+  var onPointerUp = function onPointerUp(e) {
+    pointers.delete(e.pointerId);
+    pinchStart = 0;
+
+    if (!doPinch) {
+      dragger.stop(getPointerPos(e), state.zoom);
+    }
+
+    if (pointers.size === 0) {
+      doPinch = false;
+    }
   };
 
+  var prevStyle = el.style.touchAction;
+  el.style.touchAction = 'none';
   el.addEventListener('wheel', onWheel);
-  el.addEventListener('mousedown', onMouseDown);
-  el.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', onMouseUp);
+  el.addEventListener('pointerdown', onPointerDown);
+  el.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
   return {
     state: state,
+    setCenter: function setCenter(pos) {
+      dragger.set(pos);
+      return this;
+    },
     update: function update() {
       state.center = dragger.update();
       return state;
     },
     cleanup: function cleanup() {
+      el.style.touchAction = prevStyle;
       el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('mousedown', onMouseDown);
-      el.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
     }
   };
 }

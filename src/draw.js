@@ -1,5 +1,7 @@
 import * as geometry from './geometry.js'
 
+const UNIT_BOUNDS = [0, 1, 0, 1]
+
 export class Draw {
   static create(proj, options = {}){
     return new Draw(proj, options)
@@ -23,7 +25,7 @@ export class Draw {
     const ey = 0.5 * this.height / px
     const m = this.options.scaleMode === 'fit' ? Math.min(ex, ey) : Math.max(ex, ey)
     const s = m * view.scale
-    const c = this.proj.to(view.center)
+    const c = this.proj.toCamera(UNIT_BOUNDS, view.center)
     this.cameraBounds = [
       -c[0] * s + ex
       , (1 - c[0]) * s + ex
@@ -94,11 +96,11 @@ export class Draw {
     return this
   }
 
-  dot(pt) {
+  dot(pt, size = 1) {
     const ctx = this.ctx
     const [x, y] = this.proj.toCamera(this.cameraBounds, pt)
     ctx.beginPath()
-    ctx.arc(x, y, 1, 0, 2 * Math.PI)
+    ctx.arc(x, y, size, 0, 2 * Math.PI)
     ctx.fill()
     return this
   }
