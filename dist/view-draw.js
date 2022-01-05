@@ -1,5 +1,5 @@
 /**
- * view-draw 0.0.1
+ * view-draw 0.0.2
  * @license MIT
  * Copyright 2021-present Jasper Palfree
  */
