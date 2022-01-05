@@ -47,14 +47,17 @@ export class Draw {
 
   save() {
     this.ctx.save()
+    return this
   }
 
   restore() {
     this.ctx.restore()
+    return this
   }
 
   clear() {
     this.ctx.clearRect(0, 0, this.width, this.height)
+    return this
   }
 
   color(color) {
@@ -128,6 +131,7 @@ export class Draw {
   }
 
   path(points, closed = false, fill, stroke){
+    if (!points.length){ return this }
     const ctx = this.ctx
     ctx.beginPath()
     let pt = this.proj.toCamera(this.cameraBounds, points[0])

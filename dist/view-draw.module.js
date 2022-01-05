@@ -184,14 +184,17 @@ var Draw = /*#__PURE__*/function () {
 
   _proto.save = function save() {
     this.ctx.save();
+    return this;
   };
 
   _proto.restore = function restore() {
     this.ctx.restore();
+    return this;
   };
 
   _proto.clear = function clear() {
     this.ctx.clearRect(0, 0, this.width, this.height);
+    return this;
   };
 
   _proto.color = function color(_color) {
@@ -307,6 +310,10 @@ var Draw = /*#__PURE__*/function () {
   _proto.path = function path(points, closed, fill, stroke) {
     if (closed === void 0) {
       closed = false;
+    }
+
+    if (!points.length) {
+      return this;
     }
 
     var ctx = this.ctx;
@@ -767,7 +774,7 @@ function createViewport(el, options) {
       state.center = dragger.update();
       return state;
     },
-    cleanup: function cleanup() {
+    destroy: function destroy() {
       el.style.touchAction = prevStyle;
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('pointerdown', onPointerDown);
@@ -778,4 +785,3 @@ function createViewport(el, options) {
 }
 
 export { createCanvas, createDragger, createView, createViewport, geometry };
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidmlldy1kcmF3Lm1vZHVsZS5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiIifQ==

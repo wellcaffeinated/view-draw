@@ -274,7 +274,7 @@ export function createViewport(el, options = {}) {
       state.center = dragger.update()
       return state
     }
-    , cleanup() {
+    , destroy() {
       el.style.touchAction = prevStyle
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('pointerdown', onPointerDown)
