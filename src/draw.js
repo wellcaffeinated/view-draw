@@ -10,6 +10,7 @@ export class Draw {
   constructor(proj, options){
     this.proj = proj
     this.options = options
+    this.saveStateCount = 0
   }
 
   init(canvas, view) {
@@ -46,13 +47,22 @@ export class Draw {
   }
 
   save() {
+    this.saveStateCount++
     this.ctx.save()
     return this
   }
 
   restore() {
     this.ctx.restore()
+    this.saveStateCount = Math.max(this.saveStateCount - 1, 0)
     return this
+  }
+
+  // used internally
+  end(){
+    if (this.saveStateCount){
+      window.console.warn('Warning: Forgot to call restore() after save().')
+    }
   }
 
   clear() {

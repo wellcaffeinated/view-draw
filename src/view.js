@@ -46,12 +46,14 @@ export function createView(projDef, viewbox, factory, options = {
     draw.init(canvas, view)
     draw.clear()
     factory(draw, ...args)
+    draw.end()
     return view
   }
 
   view.drawOver = (canvas, ...args) => {
     draw.init(canvas, view)
     factory(draw, ...args)
+    draw.end()
     return view
   }
 
