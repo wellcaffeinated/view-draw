@@ -1,6 +1,6 @@
 {
   "name": "@wellcaffeinated/view-draw",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Tiny Canvas Draw Toolkit",
   "main": "dist/view-draw.js",
   "module": "dist/view-draw.module.js",
