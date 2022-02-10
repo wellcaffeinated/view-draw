@@ -1,5 +1,5 @@
 /**
- * view-draw 0.0.2
+ * view-draw 0.0.3
  * @license MIT
  * Copyright 2021-present Jasper Palfree
  */
@@ -891,4 +891,3 @@ function createViewport(el, options) {
 }
 
 export { createCanvas, createDragger, createView, createViewport, geometry };
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidmlldy1kcmF3Lm1vZHVsZS5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiIifQ==

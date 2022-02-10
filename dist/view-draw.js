@@ -1,5 +1,5 @@
 /**
- * view-draw 0.0.2
+ * view-draw 0.0.3
  * @license MIT
  * Copyright 2021-present Jasper Palfree
  */
@@ -905,4 +905,3 @@
   Object.defineProperty(exports, '__esModule', { value: true });
 
 }));
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidmlldy1kcmF3LmpzIiwic291cmNlcyI6W10sInNvdXJjZXNDb250ZW50IjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiJ9
