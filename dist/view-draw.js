@@ -16,6 +16,15 @@
     var diff = to - from;
     return diff ? (x - from) / diff : 1;
   };
+  var angle = function angle(_ref3, _ref4) {
+    var x1 = _ref3[0],
+        y1 = _ref3[1];
+    var x2 = _ref4[0],
+        y2 = _ref4[1];
+    x2 -= x1;
+    y2 -= y1;
+    return Math.atan2(y2, x2);
+  };
 
   var rescale = function rescale(coords, viewbox) {
     return [lerp(viewbox[0], viewbox[1], coords[0]), lerp(viewbox[2], viewbox[3], coords[1])];
@@ -161,7 +170,10 @@
 
     function Draw(proj, options) {
       this.proj = proj;
+      this.projCanonical = makeProjection(cartesian);
       this.options = options;
+      this.saveStateCount = 0;
+      this._internalState = [];
     }
 
     var _proto = Draw.prototype;
@@ -172,6 +184,7 @@
         this.ctx = canvas.getContext('2d');
       }
 
+      this._useCanonical = false;
       this.width = canvas.width;
       this.height = canvas.height;
       this.bounds = canvas.getBoundingClientRect();
@@ -188,14 +201,57 @@
       return this;
     };
 
+    _proto.canonical = function canonical(toggle) {
+      if (toggle === void 0) {
+        toggle = true;
+      }
+
+      this._useCanonical = toggle;
+      return this;
+    };
+
+    _proto.toCamera = function toCamera(pt) {
+      if (this._useCanonical) {
+        return this.projCanonical.toCamera(this.cameraBounds, pt);
+      } else {
+        return this.proj.toCamera(this.cameraBounds, pt);
+      }
+    };
+
+    _proto.toCameraSize = function toCameraSize(pt) {
+      if (this._useCanonical) {
+        return this.projCanonical.toCameraSize(this.cameraBounds, pt);
+      } else {
+        return this.proj.toCameraSize(this.cameraBounds, pt);
+      }
+    };
+
     _proto.save = function save() {
+      this.saveStateCount++;
+
+      this._internalState.push({
+        _useCanonical: this._useCanonical
+      });
+
       this.ctx.save();
       return this;
     };
 
     _proto.restore = function restore() {
       this.ctx.restore();
+
+      var state = this._internalState.pop();
+
+      Object.assign(this, state);
+      this.saveStateCount = Math.max(this.saveStateCount - 1, 0);
       return this;
+    } // used internally
+    ;
+
+    _proto.end = function end() {
+      if (this.saveStateCount) {
+        window.console.warn('Warning: Forgot to call restore() after save().');
+      }
     };
 
     _proto.clear = function clear() {
@@ -204,6 +260,10 @@
     };
 
     _proto.color = function color(_color) {
+      if (!_color) {
+        return this;
+      }
+
       if (this.ctx.fillStyle !== _color) {
         this.ctx.fillStyle = _color;
       }
@@ -216,7 +276,7 @@
     };
 
     _proto.style = function style(propOrObj, v) {
-      if (v !== undefined) {
+      if (v !== undefined && v) {
         this.ctx[propOrObj] = v;
         return this;
       }
@@ -224,7 +284,7 @@
       for (var k in propOrObj) {
         var _v = propOrObj[k];
 
-        if (this.ctx[k] !== _v) {
+        if (this.ctx[k] !== _v && _v) {
           this.ctx[k] = _v;
         }
       }
@@ -235,16 +295,16 @@
     _proto.translate = function translate(pt) {
       var ctx = this.ctx;
 
-      var _this$proj$toCamera = this.proj.toCamera(this.worldScale, pt),
-          x = _this$proj$toCamera[0],
-          y = _this$proj$toCamera[1];
+      var _ref = this._useCanonical ? this.projCanonical.toCamera(this.worldScale, pt) : this.proj.toCamera(this.worldScale, pt),
+          x = _ref[0],
+          y = _ref[1];
 
       ctx.translate(x, y);
       return this;
     };
 
     _proto.rotate = function rotate(angle) {
-      var o = this.proj.toCamera(this.cameraBounds, [0, 0]);
+      var o = this.toCamera([0, 0]);
       this.ctx.translate(o[0], o[1]);
       this.ctx.rotate(angle);
       this.ctx.translate(-o[0], -o[1]);
@@ -258,9 +318,9 @@
 
       var ctx = this.ctx;
 
-      var _this$proj$toCamera2 = this.proj.toCamera(this.cameraBounds, pt),
-          x = _this$proj$toCamera2[0],
-          y = _this$proj$toCamera2[1];
+      var _this$toCamera = this.toCamera(pt),
+          x = _this$toCamera[0],
+          y = _this$toCamera[1];
 
       ctx.beginPath();
       ctx.arc(x, y, size, 0, 2 * Math.PI);
@@ -291,6 +351,49 @@
       return this;
     };
 
+    _proto.text = function text(_text, pos, _temp) {
+      var _ref2 = _temp === void 0 ? {} : _temp,
+          _ref2$font = _ref2.font,
+          font = _ref2$font === void 0 ? '12px monospace' : _ref2$font,
+          _ref2$textAlign = _ref2.textAlign,
+          textAlign = _ref2$textAlign === void 0 ? 'center' : _ref2$textAlign;
+
+      var _this$toCamera2 = this.toCamera(pos),
+          x = _this$toCamera2[0],
+          y = _this$toCamera2[1];
+
+      this.style('font', font).style('textAlign', textAlign);
+      this.ctx.fillText(_text, x, y);
+      return this;
+    };
+
+    _proto.arrow = function arrow(start, end, _temp2) {
+      var _ref3 = _temp2 === void 0 ? {} : _temp2,
+          _ref3$stroke = _ref3.stroke,
+          stroke = _ref3$stroke === void 0 ? 1 : _ref3$stroke,
+          _ref3$scaleHead = _ref3.scaleHead,
+          scaleHead = _ref3$scaleHead === void 0 ? false : _ref3$scaleHead,
+          _ref3$headSize = _ref3.headSize,
+          headSize = _ref3$headSize === void 0 ? 6 : _ref3$headSize,
+          headColor = _ref3.headColor;
+
+      this.path([start, end], false, false, stroke); // head
+
+      var w = this.proj.fromCameraSize(scaleHead ? this.worldUnit : this.cameraBounds, headSize);
+      this.save();
+      this.translate(end);
+      this.color(headColor);
+      var r1 = this.toCamera(start);
+      var r2 = this.toCamera(end); // const l = distance(r1, r2)
+
+      var ang = angle(r1, r2);
+      this.rotate(ang);
+      this.canonical(true);
+      this.path([[0, 0], [-w, w], [-w, -w]], true, true);
+      this.restore();
+      return this;
+    };
+
     _proto.circle = function circle(pt, r, fill, stroke) {
       if (fill === void 0) {
         fill = true;
@@ -302,11 +405,11 @@
 
       var ctx = this.ctx;
 
-      var _this$proj$toCamera3 = this.proj.toCamera(this.cameraBounds, pt),
-          x = _this$proj$toCamera3[0],
-          y = _this$proj$toCamera3[1];
+      var _this$toCamera3 = this.toCamera(pt),
+          x = _this$toCamera3[0],
+          y = _this$toCamera3[1];
 
-      r = this.proj.toCameraSize(this.cameraBounds, r);
+      r = this.toCameraSize(r);
       ctx.beginPath();
       ctx.arc(x, y, r, 0, 2 * Math.PI);
       this.paint(fill, stroke);
@@ -324,11 +427,11 @@
 
       var ctx = this.ctx;
       ctx.beginPath();
-      var pt = this.proj.toCamera(this.cameraBounds, points[0]);
+      var pt = this.toCamera(points[0]);
       ctx.moveTo(pt[0], pt[1]);
 
       for (var i = 1, l = points.length; i < l; i++) {
-        pt = this.proj.toCamera(this.cameraBounds, points[i]);
+        pt = this.toCamera(points[i]);
         ctx.lineTo(pt[0], pt[1]);
       }
 
@@ -340,10 +443,10 @@
       return this;
     };
 
-    _proto.triangle = function triangle(a, b, c, _temp, angle, fill, stroke) {
-      var _ref = _temp === void 0 ? [0, 0] : _temp,
-          x0 = _ref[0],
-          y0 = _ref[1];
+    _proto.triangle = function triangle(a, b, c, _temp3, angle, fill, stroke) {
+      var _ref4 = _temp3 === void 0 ? [0, 0] : _temp3,
+          x0 = _ref4[0],
+          y0 = _ref4[1];
 
       if (angle === void 0) {
         angle = 0;
@@ -353,6 +456,7 @@
       this.save();
       this.translate([x0, y0]);
       this.rotate(angle);
+      this.canonical(true);
       this.path(points, true, fill, stroke);
       this.restore();
       return this;
@@ -428,6 +532,7 @@
       }
 
       factory.apply(void 0, [draw].concat(args));
+      draw.end();
       return view;
     };
 
@@ -439,6 +544,7 @@
       }
 
       factory.apply(void 0, [draw].concat(args));
+      draw.end();
       return view;
     };
 
@@ -799,3 +905,4 @@
   Object.defineProperty(exports, '__esModule', { value: true });
 
 }));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidmlldy1kcmF3LmpzIiwic291cmNlcyI6W10sInNvdXJjZXNDb250ZW50IjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiJ9

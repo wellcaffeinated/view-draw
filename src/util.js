@@ -18,3 +18,15 @@ export const lerpClamped = function (from, to, t) {
 export const invLerpClamped = function (from, to, x) {
   return clamp(0, 1, invLerp(from, to, x))
 }
+
+export const distance = function ([x1, y1], [x2, y2]){
+  x2 -= x1
+  y2 -= y1
+  return Math.sqrt(y2 * y2 + x2 * x2)
+}
+
+export const angle = function([x1, y1], [x2, y2]){
+  x2 -= x1
+  y2 -= y1
+  return Math.atan2(y2, x2)
+}
