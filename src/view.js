@@ -30,8 +30,8 @@ export function createView(projDef, viewbox, factory, options = {
   view.getMousePos = (e, canvas, fromWorld = false) => {
     draw.init(canvas, view)
     const pt = [
-      (e.pageX - draw.bounds.left)
-      , (e.pageY - draw.bounds.top)
+      (e.clientX - draw.bounds.left)
+      , (e.clientY - draw.bounds.top)
     ]
     return view.toViewCoords(pt, canvas, fromWorld)
   }

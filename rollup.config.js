@@ -13,7 +13,7 @@ function header() {
     renderChunk(code) {
       return `/**
  * ${library} ${pkg.version}
- * @license MIT
+ * @license ${pkg.license}
  * Copyright 2021-present Jasper Palfree
  */
 ${code}`

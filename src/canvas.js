@@ -202,8 +202,8 @@ export function createViewport(el, options = {}) {
     const offset = el.getBoundingClientRect()
     // reversed because we want to move viewport opposite of drag
     return [
-      -(e.pageX - offset.left)
-      , -(e.pageY - offset.top)
+      -(e.clientX - offset.left)
+      , -(e.clientY - offset.top)
     ]
   }
 
